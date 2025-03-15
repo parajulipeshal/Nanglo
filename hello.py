@@ -1,6 +1,5 @@
 import streamlit as st
 import requests
-import cv2
 import numpy as np
 import base64
 import time
@@ -16,10 +15,7 @@ st.set_page_config(
 )
 
 # Constants and configuration
-API_KEY = st.secrets.get("OPENAI_API_KEY", "")
-if not API_KEY:
-    API_KEY = st.sidebar.text_input("Enter OpenAI API Key:", type="password")
-
+API_KEY = st.secrets["OPENAI_API_KEY"]
 API_URL = "https://api.openai.com/v1/chat/completions"
 MODEL = "gpt-4-vision-preview"
 
@@ -43,7 +39,7 @@ confidence_threshold = st.sidebar.slider(
 def encode_image(image):
     if isinstance(image, np.ndarray):
         # Convert numpy array to PIL Image
-        image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+        image = Image.fromarray(np.uint8(image))
     
     # Convert to bytes
     buffer = io.BytesIO()
@@ -55,10 +51,6 @@ def encode_image(image):
 
 # Function to make API request to OpenAI
 def analyze_image(image, mode="Object Detection"):
-    if not API_KEY:
-        st.error("Please provide an OpenAI API key to use this feature!")
-        return None
-    
     # Encode the image
     base64_image = encode_image(image)
     
@@ -72,7 +64,7 @@ def analyze_image(image, mode="Object Detection"):
 
     headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {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}"
+        "Authorization": f"Bearer {API_KEY}"
     }
     
     payload = {
@@ -187,7 +179,5 @@ st.sidebar.info(
     - Take pictures with your camera
     - Upload existing images
     - Detect objects, analyze scenes, or recognize text
-    
-    The app requires an OpenAI API key with access to the GPT-4 Vision model.
     """
 )
