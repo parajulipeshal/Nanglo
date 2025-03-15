@@ -14,8 +14,17 @@ st.set_page_config(
     layout="wide"
 )
 
-# Constants and configuration
-API_KEY = st.secrets["OPENAI_API_KEY"]
+# Constants and configuration - with fallback
+try:
+    API_KEY = st.secrets.get("OPENAI_API_KEY", "")
+except:
+    API_KEY = ""
+
+if not API_KEY:
+    API_KEY = st.sidebar.text_input("Enter OpenAI API Key:", type="password")
+    if not API_KEY:
+        st.warning("⚠️ Please enter your OpenAI API key in the sidebar to use this app.")
+
 API_URL = "https://api.openai.com/v1/chat/completions"
 MODEL = "gpt-4-vision-preview"
 
@@ -51,6 +60,10 @@ def encode_image(image):
 
 # Function to make API request to OpenAI
 def analyze_image(image, mode="Object Detection"):
+    if not API_KEY:
+        st.error("Please provide an OpenAI API key to use this feature!")
+        return None
+    
     # Encode the image
     base64_image = encode_image(image)
     
@@ -129,12 +142,15 @@ with tab1:
             
             # Process camera image
             if st.button("Analyze Camera Image"):
-                image = Image.open(camera_input)
-                results = analyze_image(image, detection_mode)
-                
-                if results:
-                    st.subheader("Detection Results")
-                    st.json(results)
+                if not API_KEY:
+                    st.error("Please provide an OpenAI API key in the sidebar first.")
+                else:
+                    image = Image.open(camera_input)
+                    results = analyze_image(image, detection_mode)
+                    
+                    if results:
+                        st.subheader("Detection Results")
+                        st.json(results)
 
 with tab2:
     st.header("Image Upload Detection")
@@ -149,25 +165,28 @@ with tab2:
         
         # Process uploaded image
         if st.button("Analyze Uploaded Image"):
-            results = analyze_image(image, detection_mode)
-            
-            if results:
-                st.subheader("Detection Results")
-                st.json(results)
+            if not API_KEY:
+                st.error("Please provide an OpenAI API key in the sidebar first.")
+            else:
+                results = analyze_image(image, detection_mode)
                 
-                # Try to display the results in a more user-friendly way
-                try:
-                    import json
-                    parsed_results = json.loads(results)
-                    if isinstance(parsed_results, dict) and "objects" in parsed_results:
-                        st.subheader("Detected Objects")
-                        for i, obj in enumerate(parsed_results["objects"]):
-                            if obj["confidence"] >= confidence_threshold:
-                                st.write(f"**{obj['name']}** (Confidence: {obj['confidence']:.2f})")
-                                st.write(obj.get("description", ""))
-                                st.write("---")
-                except:
-                    st.write("Could not parse the structured results.")
+                if results:
+                    st.subheader("Detection Results")
+                    st.json(results)
+                    
+                    # Try to display the results in a more user-friendly way
+                    try:
+                        import json
+                        parsed_results = json.loads(results)
+                        if isinstance(parsed_results, dict) and "objects" in parsed_results:
+                            st.subheader("Detected Objects")
+                            for i, obj in enumerate(parsed_results["objects"]):
+                                if obj["confidence"] >= confidence_threshold:
+                                    st.write(f"**{obj['name']}** (Confidence: {obj['confidence']:.2f})")
+                                    st.write(obj.get("description", ""))
+                                    st.write("---")
+                    except:
+                        st.write("Could not parse the structured results.")
 
 # Add information about the app
 st.sidebar.markdown("---")
@@ -179,5 +198,21 @@ st.sidebar.info(
     - Take pictures with your camera
     - Upload existing images
     - Detect objects, analyze scenes, or recognize text
+    
+    You'll need to provide your own OpenAI API key with access to the GPT-4 Vision model.
     """
 )
+
+# Instructions for setting up secrets
+if not API_KEY:
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("Setting up API Keys")
+    st.sidebar.info(
+        """
+        For better security, you can set up your API key as a secret:
+        
+        1. Create `.streamlit/secrets.toml` in your app directory
+        2. Add: `OPENAI_API_KEY = "your-key-here"`
+        3. For Streamlit Cloud: Add the secret in the app dashboard
+        """
+    )
